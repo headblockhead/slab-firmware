@@ -27,7 +27,7 @@ add_compile_options(-Wall # Enable all warnings
         )
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        add_compile_options(-Og) # Enable debug optimizations
+        add_compile_options(-O0) # Enable debug optimizations
 else()
         add_compile_options(-O3) # Enable speed optimizations
 endif()

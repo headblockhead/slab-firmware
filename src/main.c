@@ -26,49 +26,13 @@
 #include "squirrel_keyboard.h"
 #include "squirrel_quantum.h"
 
-// ERR code enum for error handling.
-enum slab_err {
-  SLAB_NOERR,
-  SLAB_HID_NOT_READY,
-
-};
-
-// I2C mutex
-mutex_t i2c_mutex;
-
-// last_interaction is the time in ms of the last interaction with the keyboard.
-uint64_t last_interaction = 0;
-
-// idle_timeout is the amount of time in ms before the user is considered AFK.
-// Set to UINT64_MAX to (effictivly) disable timout. (585 million years).
-uint64_t idle_timeout = 3000;
-
-// RGB LEDs
-#define NUM_PIXELS 90 // 75 keys + 15 leds on top.
-#define WS2812_GPIO 26
-// leds stores the R, G, and B values as uint8s for each pixel.
-uint8_t leds[NUM_PIXELS * 3] = {0};
-
-// put_pixel sends a single set of RGB values to the WS2812 LED strip.
-static inline void put_pixel(uint32_t pixel_grb) {
-  pio_sm_put_blocking(pio0, 0, pixel_grb << 8u);
-}
-
-// urgb_u32 is a helper function to convert 3 RGB values to a single uint32_t.
-static inline uint32_t urgb_u32(uint8_t r, uint8_t g, uint8_t b) {
-  return ((uint32_t)(r) << 8) | ((uint32_t)(g) << 16) | (uint32_t)(b);
-}
-
 // send_hid_kbd_codes sends a HID report with the given keycodes to the host.
-enum slab_err send_hid_kbd_codes(uint8_t keycode_assembly[6],
-                                 uint8_t modifiers) {
+void send_hid_kbd_codes(uint8_t keycode_assembly[6], uint8_t modifiers) {
   if (!tud_hid_ready()) {
-    // Don't send if HID is not ready.
-    return SLAB_HID_NOT_READY;
+    return;
   };
   // Send the currently active keycodes and modifiers to the host.
   tud_hid_keyboard_report(REPORT_ID_KEYBOARD, modifiers, keycode_assembly);
-  return SLAB_NOERR;
 }
 
 // Every 10ms, we will send 1 HID report (per device) to the host.
@@ -86,7 +50,8 @@ void hid_task(void) {
   uint8_t modifiers = keyboard_get_modifiers(); // Get the current modifiers.
   // Define an array to store the active keycodes. 6 is the limit for USB HID.
   uint8_t active_keycodes[6] = {0, 0, 0, 0, 0, 0};
-  keyboard_get_keycodes(&active_keycodes); // Fill the array with the keycodes.
+  keyboard_get_keycodes(&active_keycodes); // Fill the array with the
+  //  keycodes.
   send_hid_kbd_codes(active_keycodes, modifiers); // Send the HID report.
 }
 
@@ -99,9 +64,9 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const *report,
   (void)len;
   if (report[0] == REPORT_ID_KEYBOARD) {
     // If the keyboard report was just sent, send the consumer report.
-    uint16_t consumer_code = consumer_get_consumer_code();
-    tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &consumer_code,
-                   2); // Send the report.
+    // uint16_t consumer_code = consumer_get_consumer_code();
+    //    tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &consumer_code,
+    //                   2); // Send the report.
     return;
   }
 }
@@ -119,26 +84,6 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id,
   return 0;
 }
 
-uint8_t temp_leds[NUM_PIXELS * 3] = {0};
-uint8_t led_mode = 0;
-uint16_t led_data_index = 0;
-
-#define FLASH_TARGET_OFFSET (256 * 1024)
-const uint8_t *flash_target = (const uint8_t *)(XIP_BASE + FLASH_TARGET_OFFSET);
-
-// flash_led_state saves the current LED state to flash so it can be read on
-// boot.
-void flash_led_state(void *var) {
-  flash_range_erase(FLASH_TARGET_OFFSET,
-                    512); // Erase 512 bytes of flash memory starting at 0.
-  flash_range_program(
-      FLASH_TARGET_OFFSET, leds,
-      NUM_PIXELS * 3); // Write the current LED state to flash. - 270 bytes
-  // 242 bytes left
-}
-
-void load_led_state(void *var) { memcpy(leds, flash_target, NUM_PIXELS * 3); }
-
 // Invoked when received SET_REPORT control request or
 // received data on OUT endpoint ( Report ID = 0, Type = 0 )
 void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
@@ -146,44 +91,6 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
                            uint16_t bufsize) {
   // report_id was the first byte of the buffer, report_id was removed from the
   // buffer before this function was called.
-
-  if (bufsize == 1) {
-    if (report_id == 0b00000000) { // Update LED strip with data
-      memcpy(leds, temp_leds, NUM_PIXELS * 3);
-      led_data_index = 0;
-      return;
-    }
-    if (report_id == 0b00000001) { // Save the current LED state to flash
-      flash_safe_execute(&flash_led_state, NULL, 5);
-      return;
-    }
-    if (report_id == 0b00000010) { // Save the current mode state to flash
-
-      return;
-    }
-    if (report_id == 0b00000011) { // Update the current mode state
-      led_mode = buffer[0];
-      return;
-    }
-  }
-  if (bufsize == 60) {
-    // Run length decode.
-    for (uint8_t i = 0; i < 60; i += 4) {
-      uint8_t length = buffer[i];
-      if (length == 0) {
-        break;
-      }
-      uint8_t r = buffer[i + 1];
-      uint8_t g = buffer[i + 2];
-      uint8_t b = buffer[i + 3];
-      for (uint8_t j = 0; j < length; j++) {
-        temp_leds[led_data_index] = r;
-        temp_leds[led_data_index + 1] = g;
-        temp_leds[led_data_index + 2] = b;
-        led_data_index += 3;
-      }
-    }
-  }
 
   // Recived data from the host.
   if (report_type == HID_REPORT_TYPE_OUTPUT) {
@@ -213,6 +120,19 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
 // See https://www.nxp.com/docs/en/data-sheet/PCA9555.pdf for more details.
 const uint8_t PCA9555_ADDR = 0b0100000;
 
+void i2c_devices_init(void) {
+  // Initialize the I2C bus.
+  i2c_init(&i2c1_inst, 400000); // 400kHz
+
+  // Configure the I2C pins.
+  gpio_set_function(6, GPIO_FUNC_I2C);
+  gpio_set_function(7, GPIO_FUNC_I2C);
+
+  // We don't need to lock the I2C mutex here because this function is run
+  // before the multicore loop.
+  pca9555_configure(&i2c1_inst, PCA9555_ADDR, 0x0000);
+}
+
 // outputs_lookup is a lookup table that provides the correct pin outputs from
 // the PCA9555 chip for each column of the keyboard.
 const uint16_t outputs_lookup[16] = {
@@ -234,14 +154,6 @@ const uint16_t outputs_lookup[16] = {
     0b1000000000000000, // unused - not connected
 };
 
-// interaction is called when any interaction with the keyboard is detected.
-void interaction(void) {
-  last_interaction = board_millis();
-  if (tud_suspended()) {
-    tud_remote_wakeup();
-  }
-}
-
 // debounce checks keys twice over 200us and if the key is still in the same
 // position, it counts is as confirmed and runs check_key. This prevents
 // chatter. (false key activations)
@@ -260,7 +172,7 @@ void debounce(uint8_t column) {
   bool r5_prev = r5;
 
   // Wait for 200us
-  sleep_us(200);
+  sleep_ms(20);
 
   // Get the state of all keys in the column again.
   r1 = gpio_get(1);
@@ -268,38 +180,39 @@ void debounce(uint8_t column) {
   r3 = gpio_get(29);
   r4 = gpio_get(28);
   r5 = gpio_get(27);
+  if (r1 | r2 | r3 | r4 | r5) {
+    // check_key(0, r1 | r2 | r3 | r4 | r5);
+    layers[0].keys[0].pressed(0, 0, layers[0].keys[0].pressed_argument);
+    // keyboard_activate_keycode(HID_KEY_A);
+    // keyboard_keycodes[HID_KEY_A] = true;
+    if (keyboard_keycodes[HID_KEY_A]) {
+      gpio_put(17, 0);
+      gpio_put(16, 0);
+      gpio_put(25, 0);
+    }
+  } else {
+    gpio_put(17, 1);
+    gpio_put(16, 1);
+    gpio_put(25, 1);
+    keyboard_deactivate_keycode(HID_KEY_A);
+  }
 
   // If the key is still in the same state after 20ms, run check_key.
   // Also, if any key is pressed, update the last_interaction time.
   if (r1 == r1_prev) {
-    check_key(column, r1);
-    if (r1) {
-      interaction();
-    }
+    //    check_key(column, r1);
   }
   if (r2 == r2_prev) {
-    check_key(column + 15, r2);
-    if (r2) {
-      interaction();
-    }
+    //    check_key(column + 15, r2);
   }
   if (r3 == r3_prev) {
-    check_key(column + 30, r3);
-    if (r3) {
-      interaction();
-    }
+    //    check_key(column + 30, r3);
   }
   if (r4 == r4_prev) {
-    check_key(column + 45, r4);
-    if (r4) {
-      interaction();
-    }
+    //    check_key(column + 45, r4);
   }
   if (r5 == r5_prev) {
-    check_key(column + 60, r5);
-    if (r5) {
-      interaction();
-    }
+    //    check_key(column + 60, r5);
   }
 }
 
@@ -307,14 +220,11 @@ void debounce(uint8_t column) {
 void check_keys() {
   // PCA9555 uses two sets of 8-bit outputs
   // Loop through all columns
-  if (mutex_try_enter(&i2c_mutex, NULL)) {
-    for (uint8_t x = 0; x < 15; x++) {
-      uint16_t column_outputs = outputs_lookup[x];
-      pca9555_output(&i2c1_inst, PCA9555_ADDR, column_outputs);
-      debounce(x);
-    }
-    mutex_exit(&i2c_mutex);
-  };
+  for (uint8_t x = 0; x < 15; x++) {
+    uint16_t column_outputs = outputs_lookup[x];
+    pca9555_output(&i2c1_inst, PCA9555_ADDR, column_outputs);
+    debounce(x);
+  }
 }
 
 void row_setup(void) {
@@ -340,148 +250,6 @@ void row_setup(void) {
   gpio_pull_down(27);
 }
 
-// LED strip
-
-PIO led_pio = pio0;
-
-void led_init(void) {
-  uint led_pio_offset = pio_add_program(led_pio, &ws2812_program);
-  uint led_sm = pio_claim_unused_sm(led_pio, true);
-  ws2812_program_init(led_pio, led_sm, led_pio_offset, WS2812_GPIO, 800000,
-                      false);
-}
-
-void led_task(void) {
-  // Update the LED strip with the new data.
-  for (int i = 0; i < 90; i++) {
-    put_pixel(urgb_u32(leds[i * 3], leds[i * 3 + 1], leds[i * 3 + 2]));
-  }
-  sleep_us(50);
-}
-
-// Rotary Encoder
-
-#define ROTARY_A_PIN 3 // The B pin must be the A pin + 1.
-#define ROTARY_SW_PIN 2
-
-PIO rot_pio = pio1;
-int rotary_value, rotary_delta, rotary_last_value = 0;
-const uint rot_sm = 0; // must be loaded at 0
-
-void rotary_init(void) {
-  pio_add_program(rot_pio, &quadrature_encoder_program);
-  quadrature_encoder_program_init(rot_pio, rot_sm, ROTARY_A_PIN, 0);
-}
-
-void rotary_task(void) {
-  rotary_value = -(quadrature_encoder_get_count(rot_pio, rot_sm) / 2);
-  rotary_delta = rotary_value - rotary_last_value;
-  rotary_last_value = rotary_value;
-  if (rotary_delta != 0) {
-    interaction();
-  }
-}
-
-// I2C Display
-ssd1306_t display;
-
-#define SCREENSAVER_LENGTH 14 // Length of the screensaver text.
-char screensaver_text[SCREENSAVER_LENGTH] = {'S', 'L', 'A', 'B', ' ', 'K', 'E',
-                                             'Y', 'B', 'O', 'A', 'R', 'D', ' '};
-
-void draw_screensaver(int frame) {
-  // write the screensaver text waving across the screen
-  for (uint8_t x = 0; x < SCREENSAVER_LENGTH; x++) {
-    int y = 2 * sin(-frame / 10.0 + x * 2) + 8;
-    if (y < 0) {
-      y = 0;
-    }
-    if (y > 32) {
-      y = 32;
-    }
-    int letter_x = x * 22 + (-frame % (27 * SCREENSAVER_LENGTH)) + (22 * 3);
-    if (letter_x < 0) {
-      letter_x += (27 * SCREENSAVER_LENGTH);
-    }
-    if (letter_x > (27 * SCREENSAVER_LENGTH)) {
-      letter_x -= (27 * SCREENSAVER_LENGTH);
-    }
-    ssd1306_draw_char(&display, letter_x, y, 3, screensaver_text[x]);
-    ssd1306_draw_char(&display, letter_x - (27 * SCREENSAVER_LENGTH), y, 3,
-                      screensaver_text[x]);
-  }
-}
-
-void draw_homescreen(int frame) {
-  // Layer number display
-  ssd1306_draw_empty_square(&display, 2, 2, 27, 28);
-  char layer_number[2];
-  uint8_t current_layer = 0;
-  for (current_layer = 16; current_layer > 0; current_layer--) { // 15-0
-    if (!layers[current_layer - 1].active) {
-      continue;
-    }
-    sprintf(layer_number, "%d", current_layer - 1);
-    break;
-  }
-  if (current_layer >= 10) {
-    ssd1306_draw_string(&display, 4, 10, 2, layer_number);
-  } else {
-    ssd1306_draw_string(&display, 8, 6, 3, layer_number);
-  };
-
-  char ms[10];
-  sprintf(ms, "%d", last_interaction);
-  ssd1306_draw_string(&display, 30, 2, 1, ms);
-
-  char mod[10];
-  sprintf(mod, "%d", keyboard_get_modifiers());
-  ssd1306_draw_string(&display, 30, 12, 1, mod);
-}
-
-void display_task(void) {
-  ssd1306_clear(&display);
-
-  if (board_millis() - last_interaction > idle_timeout) {
-    draw_screensaver(board_millis() / 10);
-  } else {
-    draw_homescreen(board_millis() / 10);
-  }
-
-  // Update the display.
-  mutex_enter_blocking(&i2c_mutex);
-  ssd1306_show(&display);
-  mutex_exit(&i2c_mutex);
-}
-
-void i2c_devices_init(void) {
-  // Initialize the I2C bus.
-  i2c_init(&i2c1_inst, 400000); // 400kHz
-
-  // Configure the I2C pins.
-  gpio_set_function(6, GPIO_FUNC_I2C);
-  gpio_set_function(7, GPIO_FUNC_I2C);
-
-  // Initialize the I2C mutex.
-  mutex_init(&i2c_mutex);
-
-  // We don't need to lock the I2C mutex here because this function is run
-  // before the multicore loop.
-  pca9555_configure(&i2c1_inst, PCA9555_ADDR, 0x0000);
-  ssd1306_init(&display, 128, 32, 0x3C, i2c1);
-  ssd1306_set_rotation(&display, ROT_180);
-}
-
-// Core 1 deals with the LED strip, rotary encoder and OLED display.
-void core1_main() {
-  flash_safe_execute_core_init();
-  while (true) {
-    led_task();
-    rotary_task();
-    display_task();
-  }
-}
-
 // Core 0 deals with keyboard and USB HID.
 void core0_main() {
   while (true) {
@@ -491,24 +259,29 @@ void core0_main() {
   }
 }
 
+#define SQUIRREL_KEYCOUNT 1
+
 // The main function, runs initialization.
 int main(void) {
   board_init();               // Initialize the pico board
   tud_init(BOARD_TUD_RHPORT); // Initialize the tinyusb device stack
   tusb_init();                // Initialize tinyusb
-  squirrel_init(75);          // Initialize the squirrel keyboard with 75 keys.
+  squirrel_init();            // Initialize the squirrel keyboard with 75
+  //  keys.
+
+  gpio_init(25);
+  gpio_set_dir(25, GPIO_OUT);
+  gpio_init(16);
+  gpio_set_dir(16, GPIO_OUT);
+  gpio_init(17);
+  gpio_set_dir(17, GPIO_OUT);
+  gpio_put(25, 1);
+  gpio_put(16, 1);
+  gpio_put(17, 1);
 
   make_keys();        // Initialize the keys on the keyboard
   row_setup();        // Initialize the rows of the keyboard
-  led_init();         // Initialize the WS2812 LED strip
-  rotary_init();      // Initialize the rotary encoder
   i2c_devices_init(); // Initialize the I2C devices
 
-  // Load the defualt LED state from flash.
-  load_led_state(NULL);
-
-  // Core 1 loop
-  multicore_launch_core1(core1_main);
-  // Core 0 loop
   core0_main();
 }
