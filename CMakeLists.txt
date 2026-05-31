@@ -6,4 +6,6 @@ project(interchange C CXX ASM)
 
 pico_sdk_init()
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+
 add_subdirectory(prototype)

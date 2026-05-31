@@ -5,15 +5,25 @@
   outputs =
     { nixpkgs, ... }:
     let
-      supportedSystems = [
-        "x86_64-linux"
-        "aarch64-linux"
-      ];
-      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-
-      interchange-firmware = (
-        pkgs:
-        pkgs.stdenv.mkDerivation {
+      forEachSystemWithPackages =
+        do:
+        (nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ] (
+          system:
+          do (
+            import nixpkgs {
+              inherit system;
+              overlays = [
+                (final: prev: {
+                  pico-sdk = prev.pico-sdk.override { withSubmodules = true; };
+                })
+              ];
+            }
+          )
+        ));
+    in
+    {
+      packages = forEachSystemWithPackages (pkgs: rec {
+        interchange-firmware = pkgs.stdenv.mkDerivation {
           name = "interchange-firmware";
           src = ./.;
 
@@ -36,36 +46,19 @@
             cp prototype/{*.bin,*.elf,*.uf2,*.elf.map,*.dis} $out
             runHook postInstall
           '';
-        }
-      );
-    in
-    {
-      packages = forAllSystems (
-        system:
-        let
-          pkgs = import nixpkgs { inherit system; };
-        in
-        {
-          interchange-firmware = interchange-firmware pkgs;
-          default = interchange-firmware pkgs;
-        }
-      );
-      devShells = forAllSystems (
-        system:
-        let
-          pkgs = import nixpkgs { inherit system; };
-        in
-        {
-          default = pkgs.mkShell {
-            packages = with pkgs; [
-              cmake
-              #gcc-arm-embedded
-              #picotool
-              #python39
-            ];
-            PICO_SDK_PATH = "${pkgs.pico-sdk}/lib/pico-sdk";
-          };
-        }
-      );
+        };
+        default = interchange-firmware;
+      });
+      devShells = forEachSystemWithPackages (pkgs: {
+        default = pkgs.mkShell {
+          packages = with pkgs; [
+            cmake
+            gcc-arm-embedded
+            picotool
+            python313
+          ];
+          PICO_SDK_PATH = "${pkgs.pico-sdk}/lib/pico-sdk";
+        };
+      });
     };
 }
