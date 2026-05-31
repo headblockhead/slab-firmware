@@ -1,0 +1,22 @@
+if(DEFINED ENV{PICO_SDK_PATH})
+  unset(PICO_SDK_PATH CACHE)
+  set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
+  message("Using PICO_SDK_PATH from environment ('${PICO_SDK_PATH}')")
+elseif(PICO_SDK_PATH)
+  message("Using cached PICO_SDK_PATH ('${PICO_SDK_PATH}')")
+else()
+  message(FATAL_ERROR "PICO_SDK_PATH not specified, please set to the location of the Raspberry Pi Pico SDK.")
+endif()
+set(PICO_SDK_PATH "${PICO_SDK_PATH}" CACHE PATH "Path to the Raspberry Pi Pico SDK.")
+
+file(REAL_PATH "${PICO_SDK_PATH}" PICO_SDK_PATH BASE_DIRECTORY "${CMAKE_BINARY_DIR}")
+if(NOT EXISTS ${PICO_SDK_PATH})
+  message(FATAL_ERROR "Directory of PICO_SDK_PATH ('${PICO_SDK_PATH}') not found.")
+endif()
+
+set(PICO_SDK_INIT_CMAKE_FILE ${PICO_SDK_PATH}/pico_sdk_init.cmake)
+if(NOT EXISTS ${PICO_SDK_INIT_CMAKE_FILE})
+  message(FATAL_ERROR "Directory of PICO_SDK_PATH ('${PICO_SDK_PATH}') does not contain a 'pico_sdk_init.cmake' file. Is this the correct directory of the Raspberry Pi Pico SDK?")
+endif()
+
+include(${PICO_SDK_INIT_CMAKE_FILE})
