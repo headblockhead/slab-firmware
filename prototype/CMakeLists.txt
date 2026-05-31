@@ -1,6 +1,6 @@
 add_executable(prototype)
 
-pico_generate_pio_header(edbus_pio ${CMAKE_CURRENT_LIST_DIR}/edbus.pio)
+pico_generate_pio_header(prototype ${CMAKE_CURRENT_LIST_DIR}/edbus.pio)
 
 target_sources(prototype PRIVATE 
   main.c
