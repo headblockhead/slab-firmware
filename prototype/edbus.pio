@@ -1,20 +1,96 @@
 .pio_version 0
-.program edbus
 
-loop:
-    pull
-    out pins, 1
-    jmp loop
+.program edbus_tx
+.side_set 1 opt pindirs
+
+abandon:
+  mov osr, null
+  irq set 0
+public entry_point:
+.wrap_target
+  pull block
+  irq clear 0
+  wait 0 irq 7
+  set x, 31
+  set pindirs, 0      side 0  [7] 
+write_bit:
+  out y, 1
+  jmp !y do_zero
+do_one:
+  set pindirs, 1      side 1 [4]
+  jmp pin check_loop
+  jmp abandon
+do_zero:
+  set pindirs, 0      side 1 [5]
+check_loop:
+  jmp x-- write_bit   side 0 [2]
+done:
+  set pindirs, 1      side 1  [7] 
+.wrap
 
 % c-sdk {
-static inline void edbus_program_init(PIO pio, uint sm, uint offset, uint pin) {
-    pio_sm_config c = edbus_program_get_default_config(offset);
 
-    sm_config_set_out_pins(&c, pin, 1);
-    pio_gpio_init(pio, pin);
-    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
 
-    pio_sm_init(pio, sm, offset, &c);
+static inline void edbus_tx_program_init(PIO pio, uint sm, uint offset, uint pin_ebd, uint pin_ebc) {
+    assert(pin_ebc == pin_ebd + 1);
+    pio_sm_config c = edbus_tx_program_get_default_config(offset);
+
+    sm_config_set_set_pins(&c, pin_ebd, 1);
+    sm_config_set_out_pins(&c, pin_ebd, 1);
+    sm_config_set_jmp_pin(&c, pin_ebd);
+    sm_config_set_sideset_pins(&c, pin_ebc);
+
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX); 
+
+    sm_config_set_clkdiv(&c, 2.0f);
+
+    gpio_pull_up(pin_ebc);
+    gpio_pull_up(pin_ebd);
+    uint32_t both_pins = (1u << pin_ebd) | (1u << pin_ebc);
+    pio_sm_set_pins_with_mask(pio, sm, both_pins, both_pins);
+    pio_sm_set_pindirs_with_mask(pio, sm, both_pins, both_pins);
+    pio_gpio_init(pio, pin_ebd);
+    gpio_set_oeover(pin_ebd, GPIO_OVERRIDE_INVERT);
+    pio_gpio_init(pio, pin_ebc);
+    gpio_set_oeover(pin_ebc, GPIO_OVERRIDE_INVERT);
+    pio_sm_set_pins_with_mask(pio, sm, 0, both_pins);
+
+    pio_sm_init(pio, sm, offset + edbus_tx_offset_entry_point, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}
+
+.program edbus_rx
+public entry_point:
+.wrap_target
+  irq clear 7
+  wait 0 pin 0
+  irq set 7
+  jmp pin entry_point
+  set x, 31
+read_bit:
+  wait 1 pin 1
+  wait 0 pin 1
+  in pins, 1
+  jmp x-- read_bit
+  push block
+.wrap
+
+% c-sdk {
+static inline void edbus_rx_program_init(PIO pio, uint sm, uint offset, uint pin_ebd, uint pin_ebc) {
+    assert(pin_ebc == pin_ebd + 1);
+    pio_sm_config c = edbus_rx_program_get_default_config(offset);
+
+    sm_config_set_in_pins(&c, pin_ebd);
+    sm_config_set_jmp_pin(&c, pin_ebc);
+
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+
+    sm_config_set_clkdiv(&c, 2.0f);
+
+    pio_sm_init(pio, sm, offset + edbus_rx_offset_entry_point, &c);
     pio_sm_set_enabled(pio, sm, true);
 }
 %}

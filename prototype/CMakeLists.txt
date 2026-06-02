@@ -9,6 +9,8 @@ target_link_libraries(prototype PRIVATE
   pico_stdlib 
   hardware_pio
 )
+pico_enable_stdio_uart(prototype 1)
+pico_enable_stdio_usb(prototype 1)
 
 pico_add_extra_outputs(prototype)
 pico_set_program_url(prototype "https://github.com/headblockhead/interchange-firmware/tree/${GIT_REVISION}/prototype")
