@@ -71,8 +71,7 @@ public entry_point:
   jmp pin entry_point
   set x, 31
 read_bit:
-  wait 1 pin 1
-  wait 0 pin 1
+  wait 1 pin 1 [3]
   in pins, 1
   jmp x-- read_bit
   push block
