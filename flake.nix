@@ -25,7 +25,7 @@
       packages = forEachSystemWithPackages (pkgs: rec {
         interchange-firmware = pkgs.stdenv.mkDerivation {
           name = "interchange-firmware";
-          src = ./.;
+          src = pkgs.lib.cleanSource ./.;
 
           nativeBuildInputs = with pkgs; [
             cmake
