@@ -1,28 +1,29 @@
 {
-  description = "Tools for developing and building interchange-firmware";
+  description = "Firmware for Interchange keyboard modules";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
   outputs =
     { nixpkgs, ... }:
     let
-      forEachSystemWithPackages =
-        do:
-        (nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ] (
-          system:
-          do (
-            import nixpkgs {
-              inherit system;
-              overlays = [
-                (final: prev: {
-                  pico-sdk = prev.pico-sdk.override { withSubmodules = true; };
-                })
-              ];
-            }
-          )
-        ));
+      pkgsForSystem =
+        system:
+        import nixpkgs {
+          inherit system;
+          overlays = [
+            (final: prev: {
+              pico-sdk = prev.pico-sdk.override { withSubmodules = true; };
+            })
+          ];
+        };
+      supportedSystems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
+      forEachSystem = nixpkgs.lib.genAttrs supportedSystems;
+      forEachSystemWithPkgs = f: forEachSystem (system: f (pkgsForSystem system));
     in
     {
-      packages = forEachSystemWithPackages (pkgs: rec {
+      packages = forEachSystemWithPkgs (pkgs: rec {
         interchange-firmware = pkgs.stdenv.mkDerivation {
           name = "interchange-firmware";
           src = pkgs.lib.cleanSource ./.;
@@ -41,7 +42,7 @@
         };
         default = interchange-firmware;
       });
-      devShells = forEachSystemWithPackages (pkgs: {
+      devShells = forEachSystemWithPkgs (pkgs: {
         default = pkgs.mkShell {
           packages = with pkgs; [
             cmake
