@@ -37,15 +37,7 @@
             "-DCMAKE_C_COMPILER=${pkgs.gcc-arm-embedded}/bin/arm-none-eabi-gcc"
             "-DCMAKE_CXX_COMPILER=${pkgs.gcc-arm-embedded}/bin/arm-none-eabi-g++"
           ];
-          env = {
-            PICO_SDK_PATH = "${pkgs.pico-sdk}/lib/pico-sdk";
-          };
-          installPhase = ''
-            runHook preInstall
-            mkdir -p $out
-            cp prototype/{*.bin,*.elf,*.uf2,*.elf.map,*.dis} $out
-            runHook postInstall
-          '';
+          env.PICO_SDK_PATH = "${pkgs.pico-sdk}/lib/pico-sdk";
         };
         default = interchange-firmware;
       });
