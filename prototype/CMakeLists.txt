@@ -1,5 +1,5 @@
 add_executable(prototype)
-install(TARGETS prototype RUNTIME)
+install(TARGETS prototype)
 foreach(ext "bin" "dis" "elf.map" "hex" "uf2")
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/prototype.${ext}" TYPE BIN)
 endforeach()

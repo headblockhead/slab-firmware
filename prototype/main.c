@@ -29,7 +29,7 @@ void send(PIO *tx_pio, uint *tx_sm, PIO *rx_pio, uint *rx_sm) {
       pio_sm_put_blocking(*tx_pio, *tx_sm, value_to_send);
       sent_value = pio_sm_get_blocking(*rx_pio, *rx_sm);
       if (sent_value != value_to_send) {
-        printf("FAILED, sent 0x%08x, got 0x%08x.\n", sent_value, value_to_send);
+        printf("FAILED, sent 0x%08x, got 0x%08x.\n", value_to_send, sent_value);
         pass = false;
         break;
       }
@@ -91,8 +91,10 @@ int main() {
   init_rx_program(&rx_pio, &rx_sm, &rx_offset);
   init_tx_program(&tx_pio, &tx_sm, &tx_offset);
 
-  /*send(&tx_pio, &tx_sm, &rx_pio, &rx_sm);*/
-  receive(&tx_pio, &tx_sm, &rx_pio, &rx_sm);
+  sleep_ms(5000);
+
+  send(&tx_pio, &tx_sm, &rx_pio, &rx_sm);
+  /*receive(&tx_pio, &tx_sm, &rx_pio, &rx_sm);*/
 
   return 0;
 }
