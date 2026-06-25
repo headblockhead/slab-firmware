@@ -3,22 +3,32 @@
 .program edbus_tx
 .side_set 1 opt pindirs               
 
-reset:
-  mov osr, null
+error:
   irq wait 0
-public entry_point:
+public reset:
+  mov osr, null
 .wrap_target
-bitloop:
-  set pindirs, 1          side 1 
-  out y, 1
+  pull
   wait 0 irq 7
-  jmp !y write_zero       side 0
+  set pindirs, 0        [7] side 0
+  set x, 7
+write_word:
+  pull ifempty
+write_bit:
+  out y, 1
+  jmp !y write_zero
 write_one:
-  nop                     
-  jmp pin bitloop   [1]
-  jmp reset               side 1
+  set pindirs, 1        [2] side 1
+  jmp pin next_bit
+  jmp error
 write_zero:
-  set pindirs, 0    [2]   
+  set pindirs, 0        [3] side 1
+next_bit:
+  jmp !osre write_bit       side 0
+next_word:
+  jmp x-- write_word
+finish_write:
+  set pindirs, 1        [7] side 1
 .wrap
 
 % c-sdk {
@@ -39,12 +49,10 @@ static inline void edbus_tx_program_init(PIO pio, uint sm, uint offset, uint pin
     sm_config_set_jmp_pin(&c, pin_ebd); // Make the 'jmp pin' instruction read the state of the EBD pin.
     sm_config_set_sideset_pins(&c, pin_ebc); // Make the 'side 0' and 'side 1' side-set controls manipulate the EBC pin.
 
-    sm_config_set_out_shift(&c, false, true, 32);
-
     // Join the RX and TX FIFO buffers into one large TX buffer, as this program only needs TX.
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX); 
 
-    float div = (float)clock_get_hz(clk_sys) / (12 * 1000 * 1000);
+    float div = (float)clock_get_hz(clk_sys) / (48 * 1000 * 1000);
     sm_config_set_clkdiv(&c, div);
 
     // Pull up both EBD and EBC.
@@ -80,8 +88,8 @@ static inline void edbus_tx_program_init(PIO pio, uint sm, uint offset, uint pin
     // The inversion of the direction controls is used to make the edbus_tx program easier to read.
     // 'set pindirs, 0' now drives EBD low, and 'set pindirs, 1' now leaves EBD high.
 
-    // Initialise the state machine at the entry_point label.
-    pio_sm_init(pio, sm, offset + edbus_tx_offset_entry_point, &c);
+    // Initialise the state machine at the reset label.
+    pio_sm_init(pio, sm, offset + edbus_tx_offset_reset, &c);
     // Enable the state machine.
     pio_sm_set_enabled(pio, sm, true);
 }
@@ -89,15 +97,24 @@ static inline void edbus_tx_program_init(PIO pio, uint sm, uint offset, uint pin
 
 .program edbus_rx
 
-reset:
+public reset:
   mov isr, null
 .wrap_target
   irq clear 7
   wait 0 pin 1
   irq set 7
+  set x, 7
+read_word:
+  set y, 31
+read_bit:
+  wait 1 pin 1 [2]
   in pins, 1
-  jmp pin reset
-.wrap
+next_bit:
+  jmp y-- read_bit
+next_word:
+  push
+  jmp x-- read_word
+.wrap 
 
 % c-sdk {
 
@@ -113,18 +130,15 @@ static inline void edbus_rx_program_init(PIO pio, uint sm, uint offset, uint pin
     pio_sm_config c = edbus_rx_program_get_default_config(offset);
 
     sm_config_set_in_pins(&c, pin_ebd); // Make the 'in pins' instruction read the state of the EBD pin.
-    sm_config_set_jmp_pin(&c, pin_ebc); // Make the 'jmp pin' instruction read the state of the EBC pin.
-
-    sm_config_set_in_shift(&c, false, true, 32);
 
     // Join the RX and TX FIFO buffers into one large RX buffer, as this program only needs RX.
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
 
-    float div = (float)clock_get_hz(clk_sys) / (12 * 1000 * 1000);
+    float div = (float)clock_get_hz(clk_sys) / (48 * 1000 * 1000);
     sm_config_set_clkdiv(&c, div);
 
-    // Initialise the state machine at the start of the program.
-    pio_sm_init(pio, sm, offset, &c);
+    // Initialise the state machine at the reset label.
+    pio_sm_init(pio, sm, offset + edbus_rx_offset_reset, &c);
     // Enable the state machine.
     pio_sm_set_enabled(pio, sm, true);
 }
