@@ -28,7 +28,6 @@
         "aarch64-linux"
       ];
       forEachSystem = nixpkgs.lib.genAttrs supportedSystems;
-
     in
     {
       packages = forEachSystem (
