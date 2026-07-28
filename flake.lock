@@ -1,12 +1,46 @@
 {
   "nodes": {
+    "libedbus-rp2040": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1785259731,
+        "narHash": "sha256-dYgnSRtRYX/yc8U+wETeBVpBDH1WbT2hFuxHWP7gi+o=",
+        "owner": "headblockhead",
+        "repo": "libedbus-rp2040",
+        "rev": "c76e00dc597a51a7a34a3ce58a676eefcd658dc7",
+        "type": "github"
+      },
+      "original": {
+        "owner": "headblockhead",
+        "repo": "libedbus-rp2040",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1779971959,
-        "narHash": "sha256-R5nauXyqyfRUFiZycFFZdkF7wl6eaUpPLst35+2nJQY=",
+        "lastModified": 1780734595,
+        "narHash": "sha256-DmTfP92QFYRLOGXlMIE54MAgxSJjDWocl3gRNOu72Os=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ec942ba042dad5ef097e2ef3a3effc034241f011",
+        "rev": "9b696460ac78b5ccfc17c854d8c976f20456e943",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-26.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1785104993,
+        "narHash": "sha256-eKbrvPoAOFutbYMdbB3r5EQVmFxKv24iKqHPPUXA0gM=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "8623c4c20aa4ca2f5fb81510d2944066c3fb0d96",
         "type": "github"
       },
       "original": {
@@ -18,7 +52,8 @@
     },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "libedbus-rp2040": "libedbus-rp2040",
+        "nixpkgs": "nixpkgs_2"
       }
     }
   },

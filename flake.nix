@@ -1,9 +1,17 @@
 {
   description = "Firmware for Interchange keyboard modules";
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    libedbus-rp2040.url = "github:headblockhead/libedbus-rp2040";
+  };
 
   outputs =
-    { nixpkgs, ... }:
+    {
+      self,
+      nixpkgs,
+      libedbus-rp2040,
+      ...
+    }:
     let
       pkgsForSystem =
         system:
@@ -34,6 +42,9 @@
             picotool
             python313
           ];
+          buildInputs = [
+            libedbus-rp2040.packages.${pkgs.stdenv.hostPlatform.system}.default
+          ];
           cmakeFlags = [
             "-DCMAKE_C_COMPILER=${pkgs.gcc-arm-embedded}/bin/arm-none-eabi-gcc"
             "-DCMAKE_CXX_COMPILER=${pkgs.gcc-arm-embedded}/bin/arm-none-eabi-g++"
@@ -44,11 +55,8 @@
       });
       devShells = forEachSystemWithPkgs (pkgs: {
         default = pkgs.mkShell {
-          packages = with pkgs; [
-            cmake
-            gcc-arm-embedded
-            picotool
-            python313
+          inputsFrom = [
+            self.packages.${pkgs.stdenv.hostPlatform.system}.interchange-firmware
           ];
           PICO_SDK_PATH = "${pkgs.pico-sdk}/lib/pico-sdk";
         };
