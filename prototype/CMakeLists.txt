@@ -1,3 +1,7 @@
+if(DEFINED ENV{EDBUS_RP2040_PATH})
+    set(edbus-rp2040_DIR "$ENV{EDBUS_RP2040_PATH}" CACHE PATH "Path to edbus-rp2040." FORCE)
+endif()
+
 find_package(edbus-rp2040 REQUIRED)
 
 add_executable(prototype
@@ -5,6 +9,7 @@ add_executable(prototype
 )
 target_link_libraries(prototype PRIVATE
   pico_stdlib 
+  hardware_pio
   edbus-rp2040::edbus-rp2040
 )
 

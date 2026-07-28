@@ -54,9 +54,11 @@
             cmakeFlags = [
               "-DCMAKE_C_COMPILER=${pkgs.gcc-arm-embedded}/bin/arm-none-eabi-gcc"
               "-DCMAKE_CXX_COMPILER=${pkgs.gcc-arm-embedded}/bin/arm-none-eabi-g++"
-              "-Dedbus-rp2040_DIR=${edbusPkg}/lib/cmake/edbus-rp2040"
             ];
-            env.PICO_SDK_PATH = "${pkgs.pico-sdk}/lib/pico-sdk";
+            env = {
+              PICO_SDK_PATH = "${pkgs.pico-sdk}/lib/pico-sdk";
+              EDBUS_RP2040_PATH = "${edbusPkg}/lib/cmake/edbus-rp2040";
+            };
           };
           default = interchange-firmware;
         }
@@ -65,6 +67,7 @@
         system:
         let
           pkgs = pkgsForSystem system;
+          edbusPkg = libedbus-rp2040.packages.${system}.default;
         in
         {
           default = pkgs.mkShell {
@@ -72,6 +75,7 @@
               self.packages.${system}.interchange-firmware
             ];
             PICO_SDK_PATH = "${pkgs.pico-sdk}/lib/pico-sdk";
+            EDBUS_RP2040_PATH = "${edbusPkg}/lib/cmake/edbus-rp2040";
           };
         }
       );
