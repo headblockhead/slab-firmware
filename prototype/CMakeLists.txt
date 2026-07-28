@@ -5,7 +5,6 @@ add_executable(prototype
 )
 target_link_libraries(prototype PRIVATE
   pico_stdlib 
-  hardware_pio
   edbus-rp2040::edbus-rp2040
 )
 

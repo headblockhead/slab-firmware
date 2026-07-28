@@ -4,6 +4,6 @@
 
 int main() {
   stdio_init_all();
-
+  edbus_enable();
   return 0;
 }
