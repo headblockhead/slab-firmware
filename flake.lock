@@ -1,46 +1,28 @@
 {
   "nodes": {
-    "libedbus-rp2040": {
-      "inputs": {
-        "nixpkgs": "nixpkgs"
-      },
-      "locked": {
-        "lastModified": 1785279754,
-        "narHash": "sha256-Vo9I7K4+0EcMaxtQ3r8EmLZ73O43mpB1/7glQxlDqN8=",
-        "owner": "headblockhead",
-        "repo": "libedbus-rp2040",
-        "rev": "660230131f6c12c335bbb67e73b8fc25de96d8f5",
-        "type": "github"
-      },
-      "original": {
-        "owner": "headblockhead",
-        "repo": "libedbus-rp2040",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1780734595,
-        "narHash": "sha256-DmTfP92QFYRLOGXlMIE54MAgxSJjDWocl3gRNOu72Os=",
+        "lastModified": 1794042290,
+        "narHash": "sha256-ziZn2PvCJE5JEEpqTdxXwJpPB+L3YqoCpTAMCzyaP3U=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "9b696460ac78b5ccfc17c854d8c976f20456e943",
+        "rev": "f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-26.05",
+        "ref": "nixos-unstable",
         "repo": "nixpkgs",
         "type": "github"
       }
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1785133411,
-        "narHash": "sha256-Yjv0WEg39KRYS0rBdTbu6Fc/or/ihAKk13W9sQ6VWd0=",
+        "lastModified": 1793015021,
+        "narHash": "sha256-Ee5BWo8sh3pGt70QUdRajnaginqFmWvrtdBc4gJzhks=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "2f5a153c270b70cb0f8c11f46d96d6d3bc39f4e3",
+        "rev": "718f670e845328e9c2cecdd832835712b2cbd065",
         "type": "github"
       },
       "original": {
@@ -50,10 +32,28 @@
         "type": "github"
       }
     },
+    "pico-edbus": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1794434022,
+        "narHash": "sha256-ZJTvUJHFozErAwkn7zy3PPtNNn9JzX7saOWDQBH9Eh8=",
+        "ref": "refs/heads/master",
+        "rev": "4c89ee0e5854be6e9c80b862cddf7bdecc0f5c37",
+        "revCount": 32,
+        "type": "git",
+        "url": "https://seed.edwardh.dev/rad:z2AihL5EFL98E9nhuwguu6tj51yYN"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://seed.edwardh.dev/rad:z2AihL5EFL98E9nhuwguu6tj51yYN"
+      }
+    },
     "root": {
       "inputs": {
-        "libedbus-rp2040": "libedbus-rp2040",
-        "nixpkgs": "nixpkgs_2"
+        "nixpkgs": "nixpkgs",
+        "pico-edbus": "pico-edbus"
       }
     }
   },

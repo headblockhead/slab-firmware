@@ -1,8 +1,8 @@
-if(DEFINED ENV{EDBUS_RP2040_PATH})
-    set(edbus-rp2040_DIR "$ENV{EDBUS_RP2040_PATH}" CACHE PATH "Path to edbus-rp2040." FORCE)
+if(DEFINED ENV{PICO_EDBUS_PATH})
+    set(pico-edbus_DIR "$ENV{PICO_EDBUS_PATH}" CACHE PATH "Path to pico-edbus." FORCE)
 endif()
 
-find_package(edbus-rp2040 REQUIRED)
+find_package(pico-edbus REQUIRED)
 
 add_executable(prototype
   main.c
@@ -10,7 +10,7 @@ add_executable(prototype
 target_link_libraries(prototype PRIVATE
   pico_stdlib 
   hardware_pio
-  edbus-rp2040::edbus-rp2040
+  pico-edbus::pico-edbus
 )
 
 pico_enable_stdio_uart(prototype 1)

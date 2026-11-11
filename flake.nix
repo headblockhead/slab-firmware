@@ -1,42 +1,38 @@
 {
   description = "Firmware for Interchange keyboard modules";
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-    libedbus-rp2040.url = "github:headblockhead/libedbus-rp2040";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    pico-edbus.url = "git+https://seed.edwardh.dev/rad:z2AihL5EFL98E9nhuwguu6tj51yYN";
   };
 
   outputs =
-    {
-      self,
-      nixpkgs,
-      libedbus-rp2040,
-      ...
-    }:
+    { self, nixpkgs, ... }@inputs:
     let
-      pkgsForSystem =
-        system:
-        import nixpkgs {
-          inherit system;
-          overlays = [
-            (final: prev: {
-              pico-sdk = prev.pico-sdk.override { withSubmodules = true; };
-            })
-          ];
-        };
       supportedSystems = [
         "x86_64-linux"
         "aarch64-linux"
       ];
-      forEachSystem = nixpkgs.lib.genAttrs supportedSystems;
+      forEachSystemWithPkgs =
+        do:
+        nixpkgs.lib.genAttrs supportedSystems (
+          system:
+          do {
+            inherit system;
+            pkgs = import nixpkgs {
+              inherit system;
+              overlays = [
+                (final: prev: {
+                  pico-sdk = prev.pico-sdk.override { withSubmodules = true; };
+                  pico-edbus = inputs.pico-edbus.packages.${prev.stdenv.hostPlatform.system}.default;
+                })
+              ];
+            };
+          }
+        );
     in
     {
-      packages = forEachSystem (
-        system:
-        let
-          pkgs = pkgsForSystem system;
-          edbusPkg = libedbus-rp2040.packages.${system}.default;
-        in
-        rec {
+      packages = forEachSystemWithPkgs (
+        { pkgs, system }: rec {
           interchange-firmware = pkgs.stdenv.mkDerivation {
             name = "interchange-firmware";
             src = pkgs.lib.cleanSource ./.;
@@ -48,7 +44,7 @@
               python313
             ];
             buildInputs = [
-              edbusPkg
+              pkgs.pico-edbus
             ];
             cmakeFlags = [
               "-DCMAKE_C_COMPILER=${pkgs.gcc-arm-embedded}/bin/arm-none-eabi-gcc"
@@ -56,25 +52,20 @@
             ];
             env = {
               PICO_SDK_PATH = "${pkgs.pico-sdk}/lib/pico-sdk";
-              EDBUS_RP2040_PATH = "${edbusPkg}/lib/cmake/edbus-rp2040";
+              PICO_EDBUS_PATH = "${pkgs.pico-edbus}/lib/cmake/pico-edbus";
             };
           };
           default = interchange-firmware;
         }
       );
-      devShells = forEachSystem (
-        system:
-        let
-          pkgs = pkgsForSystem system;
-          edbusPkg = libedbus-rp2040.packages.${system}.default;
-        in
-        {
+      devShells = forEachSystemWithPkgs (
+        { pkgs, system }: {
           default = pkgs.mkShell {
             inputsFrom = [
               self.packages.${system}.interchange-firmware
             ];
             PICO_SDK_PATH = "${pkgs.pico-sdk}/lib/pico-sdk";
-            EDBUS_RP2040_PATH = "${edbusPkg}/lib/cmake/edbus-rp2040";
+            PICO_EDBUS_PATH = "${pkgs.pico-edbus}/lib/cmake/pico-edbus";
           };
         }
       );

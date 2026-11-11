@@ -2,9 +2,9 @@
 #include "pico/stdlib.h"
 #include <stdio.h>
 
-void consumer(uint32_t identifier, const uint8_t data[24]) {
-  gpio_put(PICO_DEFAULT_LED_PIN, true);
-}
+void interchange_edbus_message_handler(const uint32_t data[static 7]) {}
+
+void interchange_edbus_event_handler(edbus_event_t event) {}
 
 int main() {
   stdio_init_all();
@@ -14,21 +14,31 @@ int main() {
 
   sleep_ms(5000);
 
-  edbus_config_t c = {
-      pio0, 0, 1, 0, 0, 0, 1, 6, 7, consumer,
-  };
-  edbus_configure(&c);
-  edbus_enable();
+  edbus_config_t c = edbus_get_default_config(
+      6, 7, interchange_edbus_message_handler, interchange_edbus_event_handler);
+  edbus_init(&c);
 
-  edbus_message_t msg;
-  uint8_t data[24] = {0xFF, 0xAA, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                      0,    0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  edbus_construct_message(0xFFFF0000, data, msg);
-  printf("Sending message.\n");
-  edbus_send_message(msg);
-  printf("Sent.\n");
+  edbus_message_t m = {0xFFFFFFFF, 0xAAAAAAAA, 0x00000000, 0x00100100,
+                       0xABCDEF01, 0xA0000000, 0x0000000A};
 
   while (true) {
+    edbus_insert_crc_send_blocking(m);
+
+    int input = getchar_timeout_us(0);
+    if (input == '2') {
+      gpio_set_drive_strength(6, GPIO_DRIVE_STRENGTH_2MA);
+      gpio_set_drive_strength(7, GPIO_DRIVE_STRENGTH_2MA);
+    } else if (input == '4') {
+      gpio_set_drive_strength(6, GPIO_DRIVE_STRENGTH_4MA);
+      gpio_set_drive_strength(7, GPIO_DRIVE_STRENGTH_4MA);
+    } else if (input == '8') {
+      gpio_set_drive_strength(6, GPIO_DRIVE_STRENGTH_8MA);
+      gpio_set_drive_strength(7, GPIO_DRIVE_STRENGTH_8MA);
+    } else if (input == '1') {
+      gpio_set_drive_strength(6, GPIO_DRIVE_STRENGTH_12MA);
+      gpio_set_drive_strength(7, GPIO_DRIVE_STRENGTH_12MA);
+    }
+
     tight_loop_contents();
   }
 }
